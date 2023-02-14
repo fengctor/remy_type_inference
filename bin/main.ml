@@ -20,11 +20,15 @@ let e7 = LC.Lam ("x", Let ("y", Let ("z", App (Var "x", id), Var "z"), Var "y"))
 let test_exps = [ id; e1; e2; e3; e4; e5; e6; e7 ]
 
 let pretty_exp_with_typ (module M : TYPE_INFERENCE with type exp = LC.exp) exp =
+  let start_time = Time.now () in
   let typ_pretty =
     try M.pretty_typ (M.typeof M.empty_env exp) with
     | Failure msg -> "Type inference failed; " ^ msg
   in
-  String.concat [ LC.pretty_exp exp; " : "; typ_pretty ]
+  let end_time = Time.now () in
+  let ellapsed_time_us = Time.diff end_time start_time |> Time.Span.to_us in
+  String.concat
+    [ LC.pretty_exp exp; " : "; typ_pretty; " ("; Float.to_string ellapsed_time_us; "us)" ]
 ;;
 
 let () =
