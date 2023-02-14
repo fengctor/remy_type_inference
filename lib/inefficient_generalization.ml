@@ -45,7 +45,18 @@ let gensym () =
 let newvar () = TVar (ref (Unbound (gensym ())))
 let env_lookup env v = List.Assoc.find ~equal:String.equal env v
 let env_lookup_exn env v = List.Assoc.find_exn ~equal:String.equal env v
-let env_contains_typ env t = List.Assoc.mem ~equal:equal_typ (List.Assoc.inverse env) t
+
+let env_typ_name_occurs env name =
+  let typs = List.map ~f:snd env in
+  let rec typ_contains_name = function
+    | TVar { contents = Unbound name' } -> String.equal name name'
+    | TVar { contents = Link ty } -> typ_contains_name ty
+    | QVar _ -> false
+    | TArrow (ty1, ty2) -> typ_contains_name ty1 || typ_contains_name ty2
+  in
+  List.find ~f:typ_contains_name typs |> Option.is_some
+;;
+
 let env_insert env v t = (v, t) :: env
 
 (* Replace QVars with fresh TVars *)
@@ -95,7 +106,7 @@ let rec unify t1 t2 =
 let generalize env =
   let rec go = function
     | TVar { contents = Unbound name } as ty ->
-      if env_contains_typ env ty then ty else QVar name
+      if env_typ_name_occurs env name then ty else QVar name
     | TVar { contents = Link ty } -> go ty
     | TArrow (ty1, ty2) -> TArrow (go ty1, go ty2)
     | ty -> ty
