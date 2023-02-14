@@ -1,0 +1,2 @@
+(test
+ (name remy_type_inference))

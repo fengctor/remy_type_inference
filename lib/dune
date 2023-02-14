@@ -1,0 +1,5 @@
+(library
+ (name remy_type_inference)
+ (libraries core)
+ (preprocess
+   (pps ppx_jane ppx_deriving.eq)))

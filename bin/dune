@@ -1,0 +1,4 @@
+(executable
+ (public_name remy_type_inference)
+ (name main)
+ (libraries remy_type_inference core))
