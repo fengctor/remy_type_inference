@@ -1,3 +1,8 @@
+(menhir
+ (modules parser))
+
+(ocamllex lexer)
+
 (library
  (name remy_type_inference)
  (libraries core)

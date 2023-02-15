@@ -44,7 +44,12 @@ let gensym () =
 (* Make a fresh type variable *)
 let newvar () = TVar (ref (Unbound (gensym ())))
 let env_lookup env v = List.Assoc.find ~equal:String.equal env v
-let env_lookup_exn env v = List.Assoc.find_exn ~equal:String.equal env v
+
+let env_lookup_exn env v =
+  match env_lookup env v with
+  | None -> failwith (String.concat [ "Variable "; v; " is not bound." ])
+  | Some t -> t
+;;
 
 let env_typ_name_occurs env name =
   let typs = List.map ~f:snd env in

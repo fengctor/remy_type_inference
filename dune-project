@@ -5,3 +5,4 @@
   (name remy_type_inference)
   (depends ocaml dune core)
   )
+(using menhir 2.1)
