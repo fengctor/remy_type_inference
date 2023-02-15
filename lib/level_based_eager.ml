@@ -43,20 +43,25 @@ let gensym () =
 ;;
 
 (* Make a fresh type variable *)
-let newvar () = TVar (ref (Unbound (gensym (), 1))) (* TODO: proper level *)
-
+let newvar current_level () = TVar (ref (Unbound (gensym (), current_level)))
 let env_lookup env v = List.Assoc.find ~equal:String.equal env v
-let env_lookup_exn env v = List.Assoc.find_exn ~equal:String.equal env v
+
+let env_lookup_exn env v =
+  match env_lookup env v with
+  | None -> failwith (String.concat [ "Variable "; v; " is not bound." ])
+  | Some t -> t
+;;
+
 let env_insert env v t = (v, t) :: env
 
 (* Replace QVars with fresh TVars *)
-let inst ty =
+let inst current_level ty =
   let rec go subst = function
     | QVar name ->
       (match env_lookup subst name with
       | Some tv -> tv, subst
       | None ->
-        let tv = newvar () in
+        let tv = newvar current_level () in
         tv, env_insert subst name tv)
     | TVar { contents = Link ty } -> go subst ty
     | TVar { contents = Unbound _ } as ty -> ty, subst
@@ -69,14 +74,15 @@ let inst ty =
 ;;
 
 let rec occurs_check_with_level_update tvref = function
-  | TVar tvref' when equal_tv !tvref !tvref' -> failwith "Occurs check failed"
-  | TVar ({ contents = Unbound (name, l') } as tv) ->
+  | TVar tvref' when equal_ref equal_tv tvref tvref' ->
+    failwith ("Occurs check failed: " ^ pretty_tv !tvref)
+  | TVar ({ contents = Unbound (name, l') } as tvref') ->
     let min_level =
       match !tvref with
       | Unbound (_, l) -> min l l'
       | _ -> l'
     in
-    tv := Unbound (name, min_level)
+    tvref' := Unbound (name, min_level)
   | TVar { contents = Link ty } -> occurs_check_with_level_update tvref ty
   | TArrow (t1, t2) ->
     occurs_check_with_level_update tvref t1;
@@ -112,15 +118,15 @@ let generalize current_level =
 
 let typeof =
   let rec go current_level env = function
-    | LC.Var v -> inst (env_lookup_exn env v)
+    | LC.Var v -> inst current_level (env_lookup_exn env v)
     | LC.App (e1, e2) ->
       let ty_fun = go current_level env e1 in
       let ty_arg = go current_level env e2 in
-      let ty_result = newvar () in
+      let ty_result = newvar current_level () in
       unify ty_fun (TArrow (ty_arg, ty_result));
       ty_result
     | LC.Lam (v, e) ->
-      let ty_v = newvar () in
+      let ty_v = newvar current_level () in
       let ty_e = go current_level (env_insert env v ty_v) e in
       TArrow (ty_v, ty_e)
     | LC.Let (v, e, e2) ->
