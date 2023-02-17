@@ -23,8 +23,14 @@ let rec typ_is_arrow = function
   | _ -> false
 ;;
 
+let rec typ_links_resolved = function
+  | TVar { contents = Link ty } -> typ_links_resolved ty
+  | TArrow (ty1, ty2) -> TArrow (typ_links_resolved ty1, typ_links_resolved ty2)
+  | ty -> ty
+;;
+
 type env = (LC.varname * typ) list
-type exp = LC.exp
+type exp = LC.exp [@@deriving sexp, eq]
 
 let rec pretty_typ = function
   | TVar { contents = tv } -> pretty_tv tv
@@ -134,19 +140,23 @@ let generalize env =
   go
 ;;
 
-let rec typeof env = function
-  | LC.Var v -> inst (env_lookup_exn env v)
-  | LC.App (e1, e2) ->
-    let ty_fun = typeof env e1 in
-    let ty_arg = typeof env e2 in
-    let ty_result = newvar () in
-    unify ty_fun (TArrow (ty_arg, ty_result));
-    ty_result
-  | LC.Lam (v, e) ->
-    let ty_v = newvar () in
-    let ty_e = typeof (env_insert env v ty_v) e in
-    TArrow (ty_v, ty_e)
-  | LC.Let (v, e, e2) ->
-    let ty_e = typeof env e in
-    typeof (env_insert env v (generalize env ty_e)) e2
+let typeof env exp =
+  let rec go env = function
+    | LC.Var v -> inst (env_lookup_exn env v)
+    | LC.App (e1, e2) ->
+      let ty_fun = go env e1 in
+      let ty_arg = go env e2 in
+      let ty_result = newvar () in
+      unify ty_fun (TArrow (ty_arg, ty_result));
+      ty_result
+    | LC.Lam (v, e) ->
+      let ty_v = newvar () in
+      let ty_e = go (env_insert env v ty_v) e in
+      TArrow (ty_v, ty_e)
+    | LC.Let (v, e, e2) ->
+      let generalized_ty_e = generalize env (go env e) in
+      go (env_insert env v generalized_ty_e) e2
+  in
+  reset_gensym ();
+  typ_links_resolved (go env exp)
 ;;

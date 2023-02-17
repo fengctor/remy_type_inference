@@ -1,7 +1,7 @@
 module type TYPE_INFERENCE = sig
   type env
-  type exp
-  type typ
+  type exp [@@deriving sexp, eq]
+  type typ [@@deriving sexp, eq]
 
   val inference_strategy : string
   val empty_env : env

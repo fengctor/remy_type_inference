@@ -1,2 +1,5 @@
-(test
- (name remy_type_inference))
+(library
+ (name test)
+ (libraries remy_type_inference core expect_test_helpers)
+ (inline_tests)
+ (preprocess (pps ppx_jane)))

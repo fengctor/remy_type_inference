@@ -24,8 +24,14 @@ let rec typ_is_arrow = function
   | _ -> false
 ;;
 
+let rec typ_links_resolved = function
+  | TVar { contents = Link ty } -> typ_links_resolved ty
+  | TArrow (ty1, ty2) -> TArrow (typ_links_resolved ty1, typ_links_resolved ty2)
+  | ty -> ty
+;;
+
 type env = (LC.varname * typ) list
-type exp = LC.exp
+type exp = LC.exp [@@deriving sexp, eq]
 
 let rec pretty_typ = function
   | TVar { contents = tv } -> pretty_tv tv
@@ -131,7 +137,7 @@ let generalize current_level =
   go
 ;;
 
-let typeof =
+let typeof env exp =
   let rec go current_level env = function
     | LC.Var v -> inst current_level (env_lookup_exn env v)
     | LC.App (e1, e2) ->
@@ -146,7 +152,9 @@ let typeof =
       TArrow (ty_v, ty_e)
     | LC.Let (v, e, e2) ->
       let ty_e = go (current_level + 1) env e in
-      go current_level (env_insert env v (generalize current_level ty_e)) e2
+      let generalized_ty_e = generalize current_level ty_e in
+      go current_level (env_insert env v generalized_ty_e) e2
   in
-  go 1
+  reset_gensym ();
+  typ_links_resolved (go 1 env exp)
 ;;
