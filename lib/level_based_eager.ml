@@ -1,6 +1,8 @@
 open! Core
 module LC = Lambda_calculus
 
+let inference_strategy = "Level-based eager"
+
 type qname = string [@@deriving sexp, eq]
 type level = int [@@deriving sexp, eq]
 
@@ -16,6 +18,12 @@ and tv =
   | Link of typ
 [@@deriving sexp, eq]
 
+let rec typ_is_arrow = function
+  | TArrow _ -> true
+  | TVar { contents = Link ty } -> typ_is_arrow ty
+  | _ -> false
+;;
+
 type env = (LC.varname * typ) list
 type exp = LC.exp
 
@@ -23,7 +31,14 @@ let rec pretty_typ = function
   | TVar { contents = tv } -> pretty_tv tv
   | QVar name -> name
   | TArrow (ty1, ty2) ->
-    String.concat [ "("; pretty_typ ty1; " -> "; pretty_typ ty2; ")" ]
+    let pretty_ty1_raw = pretty_typ ty1 in
+    let pretty_ty1 =
+      if typ_is_arrow ty1
+      then String.concat [ "("; pretty_ty1_raw; ")" ]
+      else pretty_ty1_raw
+    in
+    let pretty_ty2 = pretty_typ ty2 in
+    String.concat [ pretty_ty1; " -> "; pretty_ty2 ]
 
 and pretty_tv = function
   | Unbound (name, _) -> "'" ^ name
